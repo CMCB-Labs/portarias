@@ -38,6 +38,26 @@
       padding: 0;
     }
 
+    /* Modern subtle scrollbar */
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: #a4c49b transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #a4c49b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: #5c854b;
+    }
+
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg);
@@ -54,14 +74,24 @@
     /* Embed Mode Overrides */
     body.is-embedded {
       background-color: transparent;
+      min-height: auto !important;
+      height: auto !important;
     }
     body.is-embedded .main-header {
-      padding: 1.25rem 1rem;
+      padding: 1rem 0.85rem;
       border-radius: 0;
     }
     body.is-embedded .app-container {
       max-width: 100%;
-      padding: 0.75rem 0.5rem 1rem;
+      padding: 0.4rem 0.2rem 0.75rem;
+    }
+    body.is-embedded .filter-card {
+      padding: 0.85rem;
+      margin-bottom: 0.85rem;
+      border-radius: var(--radius-md);
+    }
+    body.is-embedded .res-card {
+      padding: 1rem;
     }
     body.is-embedded .main-footer {
       display: none !important;
@@ -475,8 +505,8 @@
     /* Card View Layout */
     .resolutions-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 1.25rem;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.15rem;
     }
 
     @media (max-width: 640px) {
@@ -489,7 +519,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 1.25rem;
+      padding: 1.15rem;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
@@ -995,9 +1025,9 @@
           <div class="control-group">
             <label for="pageSizeSelect" class="control-label">Exibir:</label>
             <select id="pageSizeSelect" class="select-custom">
-              <option value="12">12 por página</option>
+              <option value="6">6 por página</option>
+              <option value="12" selected>12 por página</option>
               <option value="24">24 por página</option>
-              <option value="48">48 por página</option>
               <option value="all">Todas</option>
             </select>
           </div>
@@ -1111,7 +1141,8 @@
         </p>
         <ul style="font-size: 0.84rem; color: var(--text-muted); margin-left: 1.25rem; line-height: 1.6;">
           <li><code>?embed=1</code>: Otimiza as margens e fundo para exibição em iframe.</li>
-          <li><code>?hide_header=1</code>: Oculta o cabeçalho superior (ideal caso o site da Câmara já tenha título próprio).</li>
+          <li><code>?hide_header=1</code>: Oculta o cabeçalho superior.</li>
+          <li><code>?page_size=6</code>: Define 6 itens por página (ideal para telas menores).</li>
         </ul>
         <button id="copyIframeBtn" class="year-pill active" style="margin-top: 1rem; width: 100%; justify-content: center;">
           Copiar Código do Iframe
@@ -1178,6 +1209,7 @@
       const isEmbedParam = urlParams.get('embed') === '1' || urlParams.get('embed') === 'true';
       const isHideHeader = urlParams.get('hide_header') === '1' || urlParams.get('hide_header') === 'true';
       const isHideFooter = urlParams.get('hide_footer') === '1' || urlParams.get('hide_footer') === 'true';
+      const paramPageSize = urlParams.get('page_size');
       const isInIframe = window.self !== window.top;
       
       if (isEmbedParam || isInIframe) {
@@ -1190,6 +1222,11 @@
 
       if (isHideFooter) {
         document.body.classList.add('hide-footer');
+      }
+
+      if (paramPageSize) {
+        pageSize = paramPageSize;
+        if (pageSizeSelect) pageSizeSelect.value = paramPageSize;
       }
 
       // Update iframe sample URL with current location or fallback
@@ -1236,9 +1273,24 @@
     // Send height to parent if in iframe
     function notifyParentResize() {
       if (window.self !== window.top) {
-        const height = document.documentElement.scrollHeight;
+        const height = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.offsetHeight
+        );
         window.parent.postMessage({ type: 'sapl-resize', height: height }, '*');
       }
+    }
+
+    // Observe size changes automatically
+    if (window.ResizeObserver) {
+      try {
+        const ro = new ResizeObserver(() => {
+          notifyParentResize();
+        });
+        ro.observe(document.body);
+      } catch (e) {}
     }
 
     // Fetch dynamic updates from SAPL API
